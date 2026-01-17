@@ -3,7 +3,8 @@
     "allow": [
       "Bash(./node_modules/.bin/tailwindcss:*)",
       "Bash(npm install:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(curl:*)"
     ]
   }
 }

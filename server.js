@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import * as OpenCC from 'opencc-js';
 import { pinyin } from 'pinyin-pro';
+import ToJyutping from 'to-jyutping';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
@@ -121,7 +122,7 @@ function convertToSimplified(chineseLyrics) {
 }
 
 /**
- * Step 4: Add Hanyu Pinyin using pinyin-pro library (local, no copyright issues)
+ * Step 4a: Add Hanyu Pinyin using pinyin-pro library (for Mandarin)
  */
 async function addPinyinLocally(simplifiedLyrics) {
   const lines = simplifiedLyrics.split('\n');
@@ -153,17 +154,54 @@ async function addPinyinLocally(simplifiedLyrics) {
 }
 
 /**
+ * Step 4b: Add Jyutping using to-jyutping library (for Cantonese)
+ */
+async function addJyutpingLocally(chineseLyrics) {
+  const lines = chineseLyrics.split('\n');
+  const result = [];
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      // Add blank line for spacing
+      if (result.length > 0 && result[result.length - 1] !== '') {
+        result.push('');
+      }
+      continue;
+    }
+
+    // Convert to Jyutping
+    const jyutpingResult = ToJyutping.getJyutpingList(trimmedLine);
+    // getJyutpingList returns array of [char, jyutping] pairs
+    const jyutpingLine = jyutpingResult
+      .map(([char, jyutping]) => jyutping || char)
+      .join(' ');
+
+    // Add Jyutping line, then Chinese line, then blank line
+    result.push(jyutpingLine);
+    result.push(trimmedLine);
+    result.push('');
+  }
+
+  return result.join('\n').trim();
+}
+
+/**
  * Main API endpoint - Direct Genius.com scraping
  */
 app.post('/api/lyrics', async (req, res) => {
   try {
-    const { songTitle } = req.body;
+    const { songTitle, language = 'mandarin' } = req.body;
 
     if (!songTitle) {
       return res.status(400).json({ error: 'Song title is required' });
     }
 
-    console.log(`[1/4] Scraping Genius.com directly for: ${songTitle}`);
+    const isCantonese = language === 'cantonese';
+    const romanizationType = isCantonese ? 'Jyutping' : 'Hanyu Pinyin';
+
+    console.log(`[1/4] Scraping Genius.com directly for: ${songTitle} (${romanizationType})`);
     const scrapedData = await scrapeGeniusDirectly(songTitle);
 
     console.log(`[2/4] Cleaning lyrics text...`);
@@ -172,13 +210,16 @@ app.post('/api/lyrics', async (req, res) => {
     console.log(`[3/4] Converting to Simplified Chinese...`);
     const simplifiedLyrics = convertToSimplified(cleanedLyrics);
 
-    console.log(`[4/4] Adding Hanyu Pinyin locally...`);
-    const lyricsWithPinyin = await addPinyinLocally(simplifiedLyrics);
+    console.log(`[4/4] Adding ${romanizationType} locally...`);
+    const lyricsWithRomanization = isCantonese
+      ? await addJyutpingLocally(simplifiedLyrics)
+      : await addPinyinLocally(simplifiedLyrics);
 
     res.json({
-      lyrics: lyricsWithPinyin,
+      lyrics: lyricsWithRomanization,
       source: scrapedData.url,
-      method: 'genius-direct-scrape'
+      method: 'genius-direct-scrape',
+      language: isCantonese ? 'cantonese' : 'mandarin'
     });
   } catch (error) {
     console.error('=== ERROR ===');

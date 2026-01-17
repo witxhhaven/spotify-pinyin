@@ -6,6 +6,7 @@ function App() {
   const [lyrics, setLyrics] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [language, setLanguage] = useState('mandarin'); // 'mandarin' or 'cantonese'
 
   const fetchLyrics = async (e) => {
     e.preventDefault();
@@ -25,7 +26,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ songTitle: songTitle.trim() }),
+        body: JSON.stringify({ songTitle: songTitle.trim(), language }),
       });
 
       const data = await response.json();
@@ -50,7 +51,7 @@ function App() {
             Chinese Song Lyrics with Pinyin
           </h1>
           <p className="text-center text-gray-600 mb-8">
-            Enter a Chinese song (title, artist, or year) to get lyrics with Hanyu Pinyin
+            Enter a Chinese song (title, artist, or year) to get lyrics with {language === 'mandarin' ? 'Hanyu Pinyin' : 'Jyutping'}
           </p>
 
           <form onSubmit={fetchLyrics} className="mb-8">
@@ -62,6 +63,14 @@ function App() {
                 placeholder="e.g., 月亮代表我的心 邓丽君 or 七里香 周杰伦 2004"
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+              >
+                <option value="mandarin">Chinese (Pinyin)</option>
+                <option value="cantonese">Cantonese (Jyutping)</option>
+              </select>
               <button
                 type="submit"
                 disabled={loading}
@@ -94,9 +103,6 @@ function App() {
           )}
         </div>
 
-        <div className="mt-8 text-center text-gray-600 text-sm">
-          <p>Powered by GPT-4o Mini</p>
-        </div>
       </div>
     </div>
   );
